@@ -228,14 +228,6 @@ resource "azurerm_backup_protected_vm" "vm_backup" {
   backup_policy_id    = azurerm_backup_policy_vm.policy.id
 }
 
-resource "azurerm_storage_account" "staging" {
-  name                     = var.storage_account
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-}
-
 output "public_ip_address" {
   value = azurerm_public_ip.pi.ip_address
 }
