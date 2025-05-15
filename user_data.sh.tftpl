@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Update
+sudo apt update
+
+# Change timezone
+sudo timedatectl set-timezone Asia/Ho_Chi_Minh
+
+# Install make
+sudo apt install -y make
+
+# Install migrate
+curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz | tar xvz
+rm LICENSE
+rm README.md
+sudo mv migrate /usr/bin
+
+# Install apache2
+sudo apt install -y apache2
+
+# Config apache2 to forward port 3000 to port 80
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+echo "<VirtualHost *:80>" > /etc/apache2/sites-available/000-default.conf
+echo "ProxyRequests Off" >> /etc/apache2/sites-available/000-default.conf
+echo "ProxyPreserveHost On" >> /etc/apache2/sites-available/000-default.conf
+echo "ProxyVia Full" >> /etc/apache2/sites-available/000-default.conf
+echo "<Proxy *>" >> /etc/apache2/sites-available/000-default.conf
+echo "       Require all granted" >> /etc/apache2/sites-available/000-default.conf
+echo "</Proxy>" >> /etc/apache2/sites-available/000-default.conf
+echo "ProxyPass / http://127.0.0.1:3000/" >> /etc/apache2/sites-available/000-default.conf
+echo "ProxyPassReverse / http://127.0.0.1:3000/" >> /etc/apache2/sites-available/000-default.conf
+echo "ErrorLog $${APACHE_LOG_DIR}/error.log" >> /etc/apache2/sites-available/000-default.conf
+echo "CustomLog $${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/sites-available/000-default.conf
+echo "</VirtualHost>" >> /etc/apache2/sites-available/000-default.conf
+sudo systemctl restart apache2
+
+# Install mysql
+sudo apt install -y mysql-server
+
+# Allow access mysql
+echo "bind-address            = 0.0.0.0" >> /etc/mysql/mysql.conf.d/mysqld.cnf 
+sudo systemctl restart mysql
+
+# Create database
+sudo mysql -u root -e "CREATE DATABASE ${db_database} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -u root -e "CREATE USER '${db_admin_username}'@'localhost';GRANT ALL PRIVILEGES ON ${db_database}.* TO '${db_admin_username}'@'localhost';ALTER USER '${db_admin_username}'@'localhost' IDENTIFIED BY '${db_admin_password}';FLUSH PRIVILEGES;"
+
+# Clone git repository
+git clone https://github.com/nguyen-duc-loc/user-management.git
+cd user-management
+
+# Add environment variables
+echo "DB_HOST=localhost" >> .env.local
+echo "DB_USER=${db_admin_username}" >> .env.local
+echo "DB_PASSWORD=${db_admin_password}" >> .env.local
+echo "DB_DATABASE=${db_database}" >> .env.local
+echo "BACKEND_URL=http://localhost:3000" >> .env.local
+
+# Migrate database
+make migrate/up
+
+# Delete repository
+cd ..
+rm -rf user-management

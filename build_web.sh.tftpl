@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Clone git repository
+rm -rf ${web_directory}
+git clone https://github.com/nguyen-duc-loc/user-management.git ${web_directory}
+cd ${web_directory}
+
+# Install dependencies and build web
+npm install --force
+npm run build
